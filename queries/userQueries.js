@@ -10,14 +10,17 @@ const getAllUsers = () => {
 };
 
 // Add a new user asynchronously
-const addUser = (username, password, email) => {
-  const query = 'INSERT INTO users (username, password, email) VALUES (?, ?, ?)';
-  return promiseConnection.query(query, [username, password, email])
-    .then(([result]) => result)
-    .catch(err => {
-      throw new Error('Error adding user: ' + err);
-    });
-};
+const addUser = (username, password, email, phone = null, address = null) => {
+    const query = 'INSERT INTO users (username, password, email, phone, address) VALUES (?, ?, ?, ?, ?)';
+    
+    // Use promise-based query execution to interact with the database
+    return promiseConnection.query(query, [username, password, email, phone, address])
+      .then(([result]) => result)  
+      .catch(err => {  
+        throw new Error('Error adding user: ' + err);
+      });
+  };
+  
 
 // User login asynchronously
 const loginUser = (username, password) => {

@@ -14,4 +14,7 @@ router.put('/:id', productActions.updateProduct);
 // Route for deleting a product by ID
 router.delete('/:id', productActions.deleteProduct);
 
+// Endpoint to get products by order ID
+router.get('/order/:id/products', productActions.getProductsByOrderId);
+
 module.exports = router;

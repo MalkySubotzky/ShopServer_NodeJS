@@ -112,6 +112,109 @@ const getOrderDetailsById = (orderId) => {
       });
   };
 
+  // Fetch order details by order ID along with products in the order
+const getOrderDetails = (orderId) => {
+    const query = `
+      SELECT orders.id AS order_id,
+             orders.user_id,
+             orders.total_price,
+             orders.status,
+             orders.created_at,
+             order_items.quantity,
+             products.id AS product_id,
+             products.name AS product_name,
+             products.price AS product_price,
+             products.description AS product_description,
+             products.image AS product_image,
+             products.in_stock
+      FROM orders
+      JOIN order_items ON orders.id = order_items.order_id
+      JOIN products ON order_items.product_id = products.id
+      WHERE orders.id = ?;
+    `;
+    return promiseConnection.query(query, [orderId])
+      .then(([results]) => results)
+      .catch(err => {
+        throw new Error('Error fetching order details: ' + err);
+      });
+  };
+
+  // Fetch all orders by user ID
+const getOrdersByUserId = (userId) => {
+    const query = `
+      SELECT id, user_id, total_price, status, created_at
+      FROM orders
+      WHERE user_id = ?
+      ORDER BY created_at DESC;
+    `;
+    return promiseConnection.query(query, [userId])
+      .then(([results]) => results)
+      .catch(err => {
+        throw new Error('Error fetching orders by user ID: ' + err);
+      });
+  };
+  
+ // Add a new order to the database
+const addOrder = (customerId, products) => {
+    const query = `
+      INSERT INTO orders (customer_id, created_at)
+      VALUES (?, NOW());
+    `;
+    return promiseConnection.query(query, [customerId])
+      .then(([result]) => {
+        const orderId = result.insertId;  // Get the new order ID
+        return { orderId, products };     // Return the new order ID and products for further use
+      })
+      .catch(err => {
+        throw new Error('Error adding order: ' + err);  // Handle errors
+      });
+  };
+  
+  // Delete products from order and check the target date to ensure it hasn't passed
+const deleteOrderById = (orderId) => {
+    const checkOrderQuery = 'SELECT target_date FROM orders WHERE id = ?';  // Query to get the target date for the order
+    const deleteOrderQuery = 'DELETE FROM orders WHERE id = ?';  // Query to delete the order itself
+    const deleteProductsQuery = 'DELETE FROM order_items WHERE order_id = ?';  // Query to delete associated products
+  
+    // First, check if the order exists and if the target date has passed
+    return promiseConnection.query(checkOrderQuery, [orderId])
+      .then(([order]) => {
+        if (!order.length) {
+          throw new Error('Order not found');
+        }
+  
+        const targetDate = order[0].target_date;
+        const currentDate = new Date();
+  
+        // Compare the target date with the current date
+        if (new Date(targetDate) < currentDate) {
+          throw new Error('Cannot delete order because the target date has passed');
+        }
+  
+        // Delete products from the order
+        return promiseConnection.query(deleteProductsQuery, [orderId])
+          .then(() => {
+            // After deleting products, delete the order itself
+            return promiseConnection.query(deleteOrderQuery, [orderId]);
+          });
+      })
+      .then(([result]) => result)
+      .catch(err => {
+        throw new Error('Error deleting order: ' + err);
+      });
+  };
+
+  // Retrieve the number of orders by customer ID
+const getOrderCountByCustomerId = (customerId) => {
+    const query = 'SELECT COUNT(*) AS order_count FROM orders WHERE customer_id = ?'; // Query to get the number of orders for the specified customer
+    return promiseConnection.query(query, [customerId])
+      .then(([result]) => result[0].order_count) // Return the count of orders
+      .catch(err => {
+        throw new Error('Error fetching order count: ' + err); // Error handling
+      });
+  };
+  
+  
 module.exports = {
   getAllOrders,
   insertOrder,
@@ -119,7 +222,12 @@ module.exports = {
   updateOrder,
   deleteOrder,
   deleteProductsFromOrder,
+  deleteOrderById,
   getOrderById,
   getProductsByOrderId,
-  getOrderDetailsById
+  getOrderDetailsById,
+  getOrderDetails,
+  getOrdersByUserId,
+  addOrder,
+  getOrderCountByCustomerId
 };
